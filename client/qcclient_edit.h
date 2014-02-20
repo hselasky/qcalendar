@@ -52,8 +52,8 @@ public:
 
 	QDate date;
 
-	QTimeEdit *time_from;
-	QTimeEdit *time_to;
+	QLineEdit *time_from;
+	QLineEdit *time_to;
 	QTextEdit *event;
 	QListWidget *user;
 
@@ -64,7 +64,7 @@ public:
 	int id;
 
 public slots:
-	void handle_date_time_changed(const QDateTime &);
+	void handle_date_time_changed(const QString &);
 	void handle_dirty();
 };
 

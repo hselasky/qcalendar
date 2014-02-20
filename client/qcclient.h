@@ -35,10 +35,10 @@
 #include <QObject>
 #include <QSizePolicy>
 #include <QScrollArea>
-#include <QTimeEdit>
 #include <QListWidget>
 #include <QLabel>
 #include <QTextEdit>
+#include <QLineEdit>
 #include <QListWidgetItem>
 #include <QTimer>
 #include <QSettings>

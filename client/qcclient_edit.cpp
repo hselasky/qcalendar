@@ -48,12 +48,12 @@ QccEdit :: QccEdit(QccMainWindow *_parent) :
 	lbl = new QLabel(tr("%1/%2/%3").arg(d).arg(m).arg(y));
 	gl->addWidget(lbl, 0,1,1,1);
 
-	time_from = new QTimeEdit();
-	connect(time_from, SIGNAL(dateTimeChanged(const QDateTime &)), this, SLOT(handle_date_time_changed(const QDateTime &)));
-	connect(time_from, SIGNAL(dateTimeChanged(const QDateTime &)), this, SLOT(handle_dirty()));
+	time_from = new QLineEdit();
+	connect(time_from, SIGNAL(textChanged(const QString &)), this, SLOT(handle_date_time_changed(const QString &)));
+	connect(time_from, SIGNAL(textChanged(const QString &)), this, SLOT(handle_dirty()));
 
-	time_to = new QTimeEdit();
-	connect(time_to, SIGNAL(dateTimeChanged(const QDateTime &)), this, SLOT(handle_dirty()));
+	time_to = new QLineEdit();
+	connect(time_to, SIGNAL(textChanged(const QString &)), this, SLOT(handle_dirty()));
 
 	lbl = new QLabel(tr("Event start: "));
 	gl->addWidget(lbl, 1,0,1,1);
@@ -86,19 +86,15 @@ QccEdit :: ~QccEdit()
 }
 
 void
-QccEdit :: handle_date_time_changed(const QDateTime &date)
+QccEdit :: handle_date_time_changed(const QString &desc)
 {
-	tab_parent->setTabText(tab_parent->indexOf(this), tabString());
+	tab_parent->setTabText(tab_parent->indexOf(this), desc);
 }
 
 QString
 QccEdit :: tabString() const
 {
-	QTime tf = time_from->time();
-	int fh = tf.hour();
-	int fm = tf.minute();
-
-	return (QString("%1%2:%3%4").arg(fh/10).arg(fh%10).arg(fm/10).arg(fm%10));
+	return (time_from->text());
 }
 
 int
@@ -108,13 +104,13 @@ QccEdit :: compare(const QccEdit &other) const
 		return (1);
 	if (date < other.date)
 		return (-1);
-	if (time_from->time() > other.time_from->time())
+	if (time_from->text() > other.time_from->text())
 		return (1);
-	if (time_from->time() < other.time_from->time())
+	if (time_from->text() < other.time_from->text())
 		return (-1);
-	if (time_to->time() > other.time_to->time())
+	if (time_to->text() > other.time_to->text())
 		return (1);
-	if (time_to->time() < other.time_to->time())
+	if (time_to->text() < other.time_to->text())
 		return (-1);
 	if (user->currentRow() > other.user->currentRow())
 		return (1);
@@ -130,9 +126,9 @@ QccEdit :: compare(const QccEdit &other) const
 void
 QccEdit :: exportData(QSettings *setting) const
 {
-	setting->setValue("date", date.toString());
-	setting->setValue("from", time_from->time().toString());
-	setting->setValue("to", time_to->time().toString());
+	setting->setValue("date", date.toString("yyyyMMdd"));
+	setting->setValue("from", time_from->text());
+	setting->setValue("to", time_to->text());
 	setting->setValue("event", event->toPlainText());
 	setting->setValue("user", user->currentRow());
 	setting->setValue("status", status);
@@ -151,9 +147,9 @@ QccEdit :: validData(QSettings *setting) const
 void
 QccEdit :: importData(QSettings *setting)
 {
-	date = QDate::fromString(setting->value("date").toString());
-	time_from->setTime(QTime::fromString(setting->value("from").toString()));
-	time_to->setTime(QTime::fromString(setting->value("to").toString()));
+	date = QDate::fromString(setting->value("date").toString(), "yyyyMMdd");
+	time_from->setText(setting->value("from").toString());
+	time_to->setText(setting->value("to").toString());
 	event->setText(setting->value("event").toString());
 	user->setCurrentRow(setting->value("user").toInt());
 	status = setting->value("status").toInt();
