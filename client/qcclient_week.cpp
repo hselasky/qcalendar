@@ -85,7 +85,7 @@ QccWeek :: syncText(void)
 		}
 	}
 
-	x = 0;
+	x = 1;
 
 	while (1) {
 		int id;
