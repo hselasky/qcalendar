@@ -40,6 +40,8 @@ QccMainWindow :: QccMainWindow() :
 
 	memset(usage, 0, sizeof(usage));
 
+	connect(&timer, SIGNAL(timeout()), this, SLOT(handle_timeout()));
+
 	day = new QccDay(this);
 	month = new QccMonth(this);
 	week = new QccWeek(this);
@@ -139,6 +141,13 @@ Q_DECL_EXPORT void
 QccMainWindow :: handle_failure(const QString &desc)
 {
 	day->status->setText(desc);
+	timer.start(4000);
+}
+
+Q_DECL_EXPORT void
+QccMainWindow :: handle_timeout()
+{
+	day->status->setText(QString());
 }
 
 Q_DECL_EXPORT int

@@ -118,11 +118,14 @@ public:
 
 	QDate curr;
 
+	QTimer timer;
+
 public slots:
 	void handle_select_month(int);
 	void handle_select_day(int);
 	void handle_select_year(int);
 	void handle_failure(const QString &);
+	void handle_timeout();
 };
 
 extern const char *months[QCC_MONTH_NUM_H][QCC_MONTH_NUM_W];
