@@ -44,7 +44,7 @@ QccMonth :: QccMonth(QccMainWindow *_parent) :
 
 	for (x = 0; x != QCC_MONTH_NUM_W; x++) {
 		for (y = 0; y != QCC_MONTH_NUM_H; y++) {
-			button[x][y] = new QccButton(QString(months[y][x]), (y * QCC_MONTH_NUM_H) + x + 1);
+			button[x][y] = new QccButton(QString(months[y][x]), (y * QCC_MONTH_NUM_W) + x + 1);
 			QFont fnt = button[x][y]->font();
 			fnt.setBold(1);
 			button[x][y]->setFont(fnt);
