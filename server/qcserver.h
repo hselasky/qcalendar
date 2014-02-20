@@ -41,9 +41,15 @@
 #define	QCS_YEAR_NUM (QCS_YEAR_STOP + 1 - QCS_YEAR_START)
 #define	QCS_EVENT_DELTA_MAX (24 * 365)
 #define	QCS_EVENT_SIZE_MAX (16 * 1024)
+#ifndef QCS_HOST_PORT
 #define	QCS_HOST_PORT 8200
+#endif
+#ifndef QCS_HOST_ADDR
 #define	QCS_HOST_ADDR "0.0.0.0"
+#endif
+#ifndef QCS_ROOT_DIR
 #define	QCS_ROOT_DIR "/qcserver.db"
+#endif
 
 class QcsMain : public QObject
 {
