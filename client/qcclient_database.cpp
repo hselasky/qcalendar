@@ -70,7 +70,7 @@ QccDatabase :: pullEventById(uint32_t year, uint32_t event)
 	int len;
 
 	SNPRINTF(buf, sizeof(buf), "qcclient_event_%d_%d", (int)year, (int)event);
-	QSettings setting(buf, QSettings::IniFormat);
+	QSettings setting(QccDatabasePath + QChar('/') + QString(buf), QSettings::IniFormat);
 
 	if (((QccEdit *)0)->validData(&setting))
 		goto parse;
@@ -159,7 +159,7 @@ QccDatabase :: pushEventById(uint32_t year, QccEdit *pe)
 	pe->status &= ~ST_DIRTY;
 
 	SNPRINTF(buf, sizeof(buf), "qcclient_event_%d_%d", (int)year, (int)pe->id);
-	QSettings setting(buf, QSettings::IniFormat);
+	QSettings setting(QccDatabasePath + QChar('/') + QString(buf), QSettings::IniFormat);
 
 	pe->exportData(&setting);
 

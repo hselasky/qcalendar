@@ -44,6 +44,7 @@
 #include <QSettings>
 #include <QTcpSocket>
 #include <QFile>
+#include <QDir>
 
 #include <sys/queue.h>
 
@@ -127,5 +128,6 @@ public slots:
 extern const char *months[QCC_MONTH_NUM_H][QCC_MONTH_NUM_W];
 extern const char *weeks[QCC_WEEK_NUM_W];
 extern const char *users[QCC_USER_NUM];
+extern QString QccDatabasePath;
 
 #endif			/* _QCCLIENT_H_ */

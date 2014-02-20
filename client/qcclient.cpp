@@ -30,6 +30,9 @@
 #include "qcclient_week.h"
 #include "qcclient_database.h"
 
+Q_DECL_EXPORT
+QString QccDatabasePath;
+
 QccMainWindow :: QccMainWindow() :
   QTabWidget()
 {
@@ -142,6 +145,12 @@ Q_DECL_EXPORT int
 main(int argc, char **argv)
 {
   	QApplication app(argc, argv);
+
+	QDir dir;
+
+	QccDatabasePath = dir.homePath() + QString("/Documents/qcclient.db");
+
+	dir.mkpath(QccDatabasePath);
 
 	QccMainWindow *mw = new QccMainWindow();
 
