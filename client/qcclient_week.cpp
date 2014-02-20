@@ -85,12 +85,13 @@ QccWeek :: syncText(void)
 		}
 	}
 
+	x = 0;
+
 	while (1) {
 		int id;
 		int num;
 
 		y = temp.dayOfWeek();
-		x = temp.weekNumber() - wn + 1;
 
 		if (y == 7 || temp.month() != m) {
 			id = temp.weekNumber();
@@ -125,5 +126,9 @@ QccWeek :: syncText(void)
 		button[x][y]->setId(id);	  
 
 		temp = temp.addDays(1);
+
+		/* check for next week */
+		if (y == 7)
+			x++;
 	}
 }
