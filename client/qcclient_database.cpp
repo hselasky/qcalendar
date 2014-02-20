@@ -69,10 +69,8 @@ QccDatabase :: pullEventById(uint32_t year, uint32_t event)
 	char buf[64];
 	int len;
 
-	SNPRINTF(buf, sizeof(buf), "qcclient_event_%d_%d",
-	    (int)year, (int)event);
-
-	QSettings setting(buf);
+	SNPRINTF(buf, sizeof(buf), "qcclient_event_%d_%d", (int)year, (int)event);
+	QSettings setting(buf, QSettings::IniFormat);
 
 	if (((QccEdit *)0)->validData(&setting))
 		goto parse;
@@ -113,7 +111,7 @@ QccDatabase :: pullEventById(uint32_t year, uint32_t event)
 
 	file = new QFile(setting.fileName());
 
-	if (!file->open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Truncate))
+	if (!file->open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate))
 		goto error;
 
 	file->write(ptr, len);
@@ -161,7 +159,7 @@ QccDatabase :: pushEventById(uint32_t year, QccEdit *pe)
 	pe->status &= ~ST_DIRTY;
 
 	SNPRINTF(buf, sizeof(buf), "qcclient_event_%d_%d", (int)year, (int)pe->id);
-	QSettings setting(buf);
+	QSettings setting(buf, QSettings::IniFormat);
 
 	pe->exportData(&setting);
 
