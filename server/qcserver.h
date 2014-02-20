@@ -26,7 +26,7 @@
 #ifndef _QCSERVER_H_
 #define	_QCSERVER_H_
 
-#include <QApplication>
+#include <QCoreApplication>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QFile>

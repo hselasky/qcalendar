@@ -202,7 +202,7 @@ QcsMain :: ~QcsMain()
 Q_DECL_EXPORT int
 main(int argc, char **argv)
 {
-  	QApplication app(argc, argv, 0);
+  	QCoreApplication app(argc, argv, 0);
 
 	new QcsMain();
 
