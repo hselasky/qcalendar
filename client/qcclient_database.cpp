@@ -1,0 +1,511 @@
+/*-
+ * Copyright (c) 2014 Hans Petter Selasky. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+#include "qcclient_database.h"
+#include "qcclient_edit.h"
+#include "qcclient_day.h"
+
+QccDatabase :: QccDatabase(QccMainWindow *_parent)
+{
+	uint32_t x;
+
+	parent = _parent;
+	tcp = 0;
+
+	memset(event_spare, 0xff, sizeof(event_spare));
+
+	for (x = 0; x != QCC_YEAR_NUM; x++) {
+		TAILQ_INIT(&head[x]);
+		event_no[x] = 0;
+	}
+}
+
+QccDatabase :: ~QccDatabase()
+{
+	QccEdit *pe;
+	uint32_t x;
+
+	for (x = 0; x != QCC_YEAR_NUM; x++) {
+		while ((pe = TAILQ_FIRST(&head[x])) != 0) {
+			TAILQ_REMOVE(&head[x], pe, entry);
+			delete pe;
+		}
+	}
+}
+
+#define	SNPRINTF(buf, size, ...) do {		\
+	memset((buf), 0, (size));		\
+	snprintf((buf), (size), __VA_ARGS__);	\
+} while (0)
+
+QccEdit *
+QccDatabase :: pullEventById(uint32_t year, uint32_t event)
+{
+	QFile *file = 0;
+
+	char *ptr = 0;
+	char buf[64];
+	int len;
+
+	SNPRINTF(buf, sizeof(buf), "qcclient_event_%d_%d",
+	    (int)year, (int)event);
+
+	QSettings setting(buf);
+
+	if (((QccEdit *)0)->validData(&setting))
+		goto parse;
+
+	setting.sync();
+
+	SNPRINTF(buf, sizeof(buf), "PULL_%d_%d\n", (int)year, (int)event);
+	tcp->write(buf, sizeof(buf));
+	tcp->flush();
+
+	while (tcp->bytesAvailable() < (int)sizeof(buf)) {
+		if (!tcp->waitForReadyRead(4000))
+			goto error;
+	}
+
+	len = tcp->read(buf, sizeof(buf));
+	if (len != (int)sizeof(buf))
+		goto error;
+
+	buf[sizeof(buf)-1] = 0;
+
+	if (sscanf(buf, "BYTES_%d", &len) != 1)
+		goto error;
+
+	if (len <= 0 || len > QCC_EVENT_SIZE_MAX)
+		goto error;
+
+	ptr = (char *)malloc(len);
+	if (ptr == 0)
+		goto error;
+
+	while (tcp->bytesAvailable() < len) {
+		if (!tcp->waitForReadyRead(4000))
+			goto error;
+	}
+	if (tcp->read(ptr, len) != len)
+		goto error;
+
+	file = new QFile(setting.fileName());
+
+	if (!file->open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Truncate))
+		goto error;
+
+	file->write(ptr, len);
+	file->close();
+
+	setting.sync();
+
+	if (((QccEdit *)0)->validData(&setting))
+		goto parse;
+
+error:
+	free(ptr);
+	delete(file);
+	return (0);
+
+parse:
+	QccEdit *pe = new QccEdit(parent);
+	pe->tab_parent = parent->day->tab;
+	pe->importData(&setting);
+	free(ptr);
+	delete(file);
+	return (pe);
+}
+
+void
+QccDatabase :: pushEventById(uint32_t year, QccEdit *pe)
+{
+	QFile *file = 0;
+	char buf[64];
+	int len;
+	QByteArray ba;
+
+	if (!(pe->status & ST_DIRTY))
+		return;
+
+	/* get new ID, if any */
+	if (pe->id < 0) {
+		if (pe->status & ST_REMOVED)
+			return;
+		pe->id = getNewEventId(year);
+		if (pe->id < 0)
+			return;
+	}
+
+	pe->status &= ~ST_DIRTY;
+
+	SNPRINTF(buf, sizeof(buf), "qcclient_event_%d_%d", (int)year, (int)pe->id);
+	QSettings setting(buf);
+
+	pe->exportData(&setting);
+
+	setting.sync();
+
+	file = new QFile(setting.fileName());
+
+	if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
+		goto error;
+
+	ba = file->readAll();
+
+	SNPRINTF(buf, sizeof(buf), "PUSH_%d_%d_%d\n",
+	    (int)year, (int)pe->id, (int)ba.size());
+	tcp->write(buf, sizeof(buf));
+	tcp->write(ba);
+	tcp->flush();
+
+	while (tcp->bytesAvailable() < (int)sizeof(buf)) {
+		if (!tcp->waitForReadyRead(4000))
+			goto error;
+	}
+
+	len = tcp->read(buf, sizeof(buf));
+	if (len != (int)sizeof(buf))
+		goto error;
+
+	buf[sizeof(buf)-1] = 0;
+
+	if (strcmp(buf, "OK\n"))
+		goto error;
+	delete(file);
+	return;
+
+error:
+	parent->handle_failure(parent->tr("Could not store event"));
+	pe->status |= ST_DIRTY;
+	delete(file);
+}
+
+uint32_t
+QccDatabase :: getMaxEventId(uint32_t year)
+{
+	char buf[64];
+	int len;
+
+	SNPRINTF(buf, sizeof(buf), "MAX_EVENT_ID_%d\n", (int)year);
+	tcp->write(buf, sizeof(buf));
+	tcp->flush();
+
+	while (tcp->bytesAvailable() < (int)sizeof(buf)) {
+		if (!tcp->waitForReadyRead(4000))
+			goto error;
+	}
+
+	len = tcp->read(buf, sizeof(buf));
+	if (len != (int)sizeof(buf))
+		goto error;
+
+	buf[sizeof(buf)-1] = 0;
+
+	if (sscanf(buf, "ID_%d", &len) != 1)
+		goto error;
+
+	if (len < 0 || len > QCC_EVENT_DELTA_MAX)
+		goto error;
+
+	return (len);
+error:
+	parent->handle_failure(parent->tr("Could not read max ID"));
+
+	QSettings setting("qcclient");
+	QString key = QString("year_%1_event").arg(year);
+	if (setting.contains(key)) {
+		len = setting.value(key).toInt();
+		if (len > QCC_EVENT_DELTA_MAX)
+			len = 0;
+		return (len);
+	}
+	return (0);
+}
+
+int
+QccDatabase :: getNewEventId(uint32_t year, uint32_t no_spares)
+{
+	char buf[64];
+	int len;
+	int x;
+
+	SNPRINTF(buf, sizeof(buf), "NEW_EVENT_ID_%d\n", (int)year);
+	tcp->write(buf, sizeof(buf));
+	tcp->flush();
+
+	while (tcp->bytesAvailable() < (int)sizeof(buf)) {
+		if (!tcp->waitForReadyRead(4000))
+			goto error;
+	}
+
+	len = tcp->read(buf, sizeof(buf));
+	if (len != (int)sizeof(buf))
+		goto error;
+
+	buf[sizeof(buf)-1] = 0;
+
+	if (sscanf(buf, "ID_%d", &len) != 1)
+		goto error;
+
+	if (len < 0 || len > QCC_EVENT_DELTA_MAX)
+		goto error;
+	return (len);
+
+error:
+	parent->handle_failure(parent->tr("Could not read current ID"));
+
+	if (no_spares != 0)
+		return (-1);
+
+	QSettings setting("qcclient");
+
+	for (x = 0; x != QCC_EVENT_SPARE_NUM; x++) {
+		QString key = QString("year_%1_spare_%2").arg(year).arg(x);
+		if (setting.contains(key) == 0)
+			continue;
+		len = setting.value(key).toInt();
+		if (len < 0 || len > QCC_EVENT_DELTA_MAX)
+			continue;
+		setting.setValue(key, -1);
+		setting.sync();
+		return (len);
+	}
+	return (-1);
+}
+
+static int
+compare(const void *a, const void *b)
+{
+	const QccEdit *pa = *(const QccEdit **)a;
+	const QccEdit *pb = *(const QccEdit **)b;
+
+	return (pa->compare(*pb));
+}
+
+void
+QccDatabase :: sort()
+{
+	uint32_t x;
+	uint32_t n;
+	uint32_t y;
+	QccEdit *pe;
+	QccEdit **ppe;
+
+	memset(parent->usage, 0, sizeof(parent->usage));
+
+	for (x = 0; x != QCC_YEAR_NUM; x++) {
+		n = 0;
+		TAILQ_FOREACH(pe, &head[x], entry) {
+			n++;
+		}
+		if (n == 0)
+			continue;
+
+		ppe = (QccEdit **)malloc(sizeof(void *) * n);
+		if (ppe == 0)
+			break;
+
+		/* remove events from list */
+		n = 0;
+		while ((pe = TAILQ_FIRST(&head[x])) != 0) {
+			 TAILQ_REMOVE(&head[x], pe, entry);
+			 ppe[n] = pe;
+			 n++;
+		}
+
+		/* sort events */
+		qsort(ppe, n, sizeof(void *), compare);
+
+		/* remove duplicates */
+		for (y = 1; y != n; y++) {
+			if (ppe[y]->compare(*ppe[y - 1]) == 0) {
+				delete (ppe[y - 1]);
+				ppe[y - 1] = 0;
+			}
+		}
+
+		/* remove deleted events */
+		for (y = 0; y != n; y++) {
+			if (ppe[y] == 0)
+				continue;
+			if ((ppe[y]->status & ST_REMOVED) && (ppe[y]->id == -1)) {
+				delete (ppe[y]);
+				ppe[y] = 0;
+			}
+		}
+
+		/* put back in list */
+		for (y = 0; y != n; y++) {
+			pe = ppe[y];
+			if (pe == 0)
+				continue;
+			if (!(pe->status & ST_REMOVED)) {
+				int a,b,c;
+				pe->date.getDate(&a,&b,&c);
+
+				/* Do stats */
+				if (a >= QCC_YEAR_START && a <= QCC_YEAR_STOP)
+					parent->usage[a - QCC_YEAR_START][b - 1][c - 1]++;
+			}
+			TAILQ_INSERT_TAIL(&head[x], pe, entry);
+		}
+		free(ppe);
+	}
+}
+
+void
+QccDatabase :: sync()
+{
+	QccEdit *pe;
+	uint32_t event_new;
+	uint32_t event_delta;
+	uint32_t x;
+	uint32_t y;
+
+	parent->handle_failure(parent->tr("OK"));
+
+	QSettings setting("qcclient");
+
+	/* unref any QccEdits */
+	while (parent->day->tab->count())
+		parent->day->tab->removeTab(0);
+
+	tcp = new QTcpSocket();
+
+	tcp->connectToHost(QCC_HOST_ADDR, QCC_HOST_PORT);
+	if (tcp->waitForConnected(4000) == 0) {
+		parent->handle_failure(parent->tr("Could not connect to HOST"));
+		goto pull_only;
+	}
+
+	/* refresh spares, if any */
+	for (y = 0; y != QCC_YEAR_NUM; y++) {
+		for (x = 0; x != QCC_EVENT_SPARE_NUM; x++) {
+			QString key = QString("year_%1_spare_%2")
+			    .arg(QCC_YEAR_START + y).arg(x);
+
+			if (setting.contains(key) != 0 &&
+			    setting.value(key).toInt() > -1)
+				continue;
+
+			int id = getNewEventId(QCC_YEAR_START + y, 1);
+			if (id < 0 || id > QCC_EVENT_DELTA_MAX)
+				break;
+			setting.setValue(key, id);
+		}
+	}
+
+	setting.sync();
+
+	/* ensure all events are pushed */
+	for (x = 0; x != QCC_YEAR_NUM; x++) {
+		TAILQ_FOREACH(pe, &head[x], entry)
+			pushEventById(QCC_YEAR_START + x, pe);
+     	}
+
+pull_only:
+	/* pull new events, if any */
+	for (x = 0; x != QCC_YEAR_NUM; x++) {
+
+		event_new = getMaxEventId(x + QCC_YEAR_START);
+
+		event_delta = event_new - event_no[x];
+		if (event_delta >= QCC_EVENT_DELTA_MAX)
+			continue;
+
+		while (event_new != event_no[x]) {
+
+			QccEdit *pe = pullEventById(
+			    x + QCC_YEAR_START, event_no[x]);
+
+			if (pe == 0) {
+				parent->handle_failure(parent->tr("Could not read event"));
+				break;
+			}
+			TAILQ_INSERT_TAIL(&head[x], pe, entry);
+			event_no[x]++;
+		}
+
+		QString key = QString("year_%1_event").arg(QCC_YEAR_START + x);
+		setting.setValue(key, event_no[x]);
+	}
+	setting.sync();
+	tcp->close();
+
+	delete tcp;
+	tcp = 0;
+
+	sort();
+}
+
+void
+QccDatabase :: show()
+{
+	QccEdit *pe;
+	int y,m,d;
+	int x;
+
+	parent->curr.getDate(&y,&m,&d);
+
+	x = y - QCC_YEAR_START;
+	if (x < 0 || x >= QCC_YEAR_NUM)
+		return;
+
+	/* unref any QccEdits */
+	while (parent->day->tab->count())
+		parent->day->tab->removeTab(0);
+
+	TAILQ_FOREACH(pe, &head[x], entry) {
+		if (pe->status & ST_REMOVED)
+			continue;
+		int a,b,c;
+		pe->date.getDate(&a,&b,&c);
+
+		/* Add tab to view, if any */
+		if (a == y && b == m && d == c)
+			parent->day->tab->addTab(pe, pe->tabString());
+	}
+}
+
+int
+QccDatabase :: add(QccEdit *pe)
+{
+	int y,m,d;
+	int x;
+
+	pe->date.getDate(&y,&m,&d);
+
+	x = y - QCC_YEAR_START;
+	if (x < 0 || x >= QCC_YEAR_NUM) {
+		delete pe;
+		return (0);
+	}
+
+	pe->status |= ST_DIRTY;
+	pe->tab_parent = parent->day->tab;
+
+	TAILQ_INSERT_TAIL(&head[x], pe, entry);
+	return (1);
+}

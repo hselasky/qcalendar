@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=QCalendar Client
+Comment=Calendar Client Editor and Viewer
+Exec=QCalendarClient
+Icon=qcclient_48x48
+Categories=Office
+Terminal=false
+Type=Application
+
