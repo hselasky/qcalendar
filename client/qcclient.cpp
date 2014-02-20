@@ -56,11 +56,12 @@ QccMainWindow :: QccMainWindow() :
 	setWindowIcon(QIcon(QString(":/qcclient_48x48.png")));
 }
 
+Q_DECL_EXPORT
 QccMainWindow :: ~QccMainWindow()
 {
 }
 
-void
+Q_DECL_EXPORT void
 QccMainWindow :: handle_select_month(int mnew)
 {
 	int y,m,d;
@@ -79,7 +80,7 @@ QccMainWindow :: handle_select_month(int mnew)
 		setCurrentIndex(INDEX_WEEK);
 }
 
-void
+Q_DECL_EXPORT void
 QccMainWindow :: tabRefresh()
 {
 	setTabText(INDEX_YEAR, tr("Year - %1").arg(curr.year()));
@@ -91,7 +92,7 @@ QccMainWindow :: tabRefresh()
 	    .arg(QString(weeks[curr.dayOfWeek()])));
 }
 
-void
+Q_DECL_EXPORT void
 QccMainWindow :: handle_select_day(int dnew)
 {
 	int y,m,d;
@@ -112,7 +113,7 @@ QccMainWindow :: handle_select_day(int dnew)
 	}
 }
 
-void
+Q_DECL_EXPORT void
 QccMainWindow :: handle_select_year(int ynew)
 {
 	int y,m,d;
@@ -131,7 +132,7 @@ QccMainWindow :: handle_select_year(int ynew)
 		setCurrentIndex(INDEX_MONTH);
 }
 
-void
+Q_DECL_EXPORT void
 QccMainWindow :: handle_failure(const QString &desc)
 {
 	day->status->setText(desc);
