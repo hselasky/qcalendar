@@ -29,7 +29,6 @@
 QccEdit :: QccEdit(QccMainWindow *_parent) :
   QWidget()
 {
-	unsigned x;
 	int y,m,d;
 
 	QLabel *lbl;
@@ -45,8 +44,8 @@ QccEdit :: QccEdit(QccMainWindow *_parent) :
 	lbl = new QLabel(tr("Event Date: "));
 	gl->addWidget(lbl, 0,0,1,1);
 
-	lbl = new QLabel(tr("%1/%2/%3").arg(d).arg(m).arg(y));
-	gl->addWidget(lbl, 0,1,1,1);
+	lbl_date = new QLabel(QString("%1/%2/%3").arg(d).arg(m).arg(y));
+	gl->addWidget(lbl_date, 0,1,1,1);
 
 	time_from = new QLineEdit();
 	connect(time_from, SIGNAL(textChanged(const QString &)), this, SLOT(handle_date_time_changed(const QString &)));
@@ -60,21 +59,19 @@ QccEdit :: QccEdit(QccMainWindow *_parent) :
 	gl->addWidget(time_from, 1,1,1,1);
 
 	lbl = new QLabel(tr("Event stop: "));
-	gl->addWidget(lbl, 2,0,1,1);
-	gl->addWidget(time_to, 2,1,1,1);
+	gl->addWidget(lbl, 1,2,1,1);
+	gl->addWidget(time_to, 1,3,1,1);
 
-	user = new QListWidget();
-	connect(user, SIGNAL(currentRowChanged(int)), this, SLOT(handle_dirty()));
+	lbl = new QLabel(tr("Attendees: "));
+	gl->addWidget(lbl, 0,2,1,1);
 
-	for (x = 0; x != QCC_USER_NUM; x++) {
-		new QListWidgetItem(QString(users[x]), user);
-	}
-
-	gl->addWidget(user, 1,2,2,1);
+	user = new QLineEdit();
+	connect(user, SIGNAL(textChanged(const QString &)), this, SLOT(handle_dirty()));
+	gl->addWidget(user, 0,3,1,1);
 
 	event = new QTextEdit();
 	connect(event, SIGNAL(textChanged()), this, SLOT(handle_dirty()));
-	gl->addWidget(event, 3,0,1,3);
+	gl->addWidget(event, 2,0,1,4);
 
 	status = 0;
 	id = -1;
@@ -112,9 +109,9 @@ QccEdit :: compare(const QccEdit &other) const
 		return (1);
 	if (time_to->text() < other.time_to->text())
 		return (-1);
-	if (user->currentRow() > other.user->currentRow())
+	if (user->text() > other.user->text())
 		return (1);
-	if (user->currentRow() < other.user->currentRow())
+	if (user->text() < other.user->text())
 		return (-1);
 	if (id > other.id)
 		return (1);
@@ -130,7 +127,7 @@ QccEdit :: exportData(QSettings *setting) const
 	setting->setValue("from", time_from->text());
 	setting->setValue("to", time_to->text());
 	setting->setValue("event", event->toPlainText());
-	setting->setValue("user", user->currentRow());
+	setting->setValue("user", user->text());
 	setting->setValue("status", status);
 	setting->setValue("id", id);
 }
@@ -147,11 +144,16 @@ QccEdit :: validData(QSettings *setting) const
 void
 QccEdit :: importData(QSettings *setting)
 {
+	int d,m,y;
+
 	date = QDate::fromString(setting->value("date").toString(), "yyyyMMdd");
+	date.getDate(&y,&m,&d);
+
+	lbl_date->setText(QString("%1/%2/%3").arg(d).arg(m).arg(y));
 	time_from->setText(setting->value("from").toString());
 	time_to->setText(setting->value("to").toString());
 	event->setText(setting->value("event").toString());
-	user->setCurrentRow(setting->value("user").toInt());
+	user->setText(setting->value("user").toString());
 	status = setting->value("status").toInt();
 	id = setting->value("id").toInt();
 }

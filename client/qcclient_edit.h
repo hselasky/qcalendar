@@ -55,7 +55,8 @@ public:
 	QLineEdit *time_from;
 	QLineEdit *time_to;
 	QTextEdit *event;
-	QListWidget *user;
+	QLineEdit *user;
+	QLabel *lbl_date;
 
 	int status;
 #define	ST_OK 0

@@ -96,7 +96,7 @@ QccDay :: handle_new(int id)
 {
 	QccEdit *pe = new QccEdit(parent);
 
-	pe->user->setCurrentRow(id);
+	pe->user->setText(QString(users[id]));
 
 	if (parent->db->add(pe) == 0)
 		return;
