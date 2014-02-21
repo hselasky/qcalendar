@@ -61,7 +61,7 @@ QccDatabase :: ~QccDatabase()
 } while (0)
 
 QccEdit *
-QccDatabase :: pullEventById(uint32_t year, uint32_t event)
+QccDatabase :: pullEventById(uint32_t year, uint32_t event, uint32_t refresh)
 {
 	QFile *file = 0;
 
@@ -72,10 +72,12 @@ QccDatabase :: pullEventById(uint32_t year, uint32_t event)
 	SNPRINTF(buf, sizeof(buf), "qcclient_event_%d_%d", (int)year, (int)event);
 	QSettings setting(QccDatabasePath + QChar('/') + QString(buf), QSettings::IniFormat);
 
-	if (((QccEdit *)0)->validData(&setting))
-		goto parse;
+	if (refresh == 0) {
+		if (((QccEdit *)0)->validData(&setting))
+			goto parse;
 
-	setting.sync();
+		setting.sync();
+	}
 
 	SNPRINTF(buf, sizeof(buf), "PULL_%d_%d\n", (int)year, (int)event);
 	tcp->write(buf, sizeof(buf));
@@ -340,16 +342,9 @@ QccDatabase :: getHashes(uint32_t year, int event, QByteArray &curr)
 	ptr_temp = temp.data();
 	ptr_curr = curr.data();
 
-	if (curr.size() % QCC_HASH_SIZE)
-		curr = temp;
-
-	if (len > curr.size()) {
-		len = curr.size();
-		retval = 0;
-	}
-
 	for (x = 0; x != len; x += QCC_HASH_SIZE) {
-		if (memcmp(ptr_curr + x, ptr_temp + x, QCC_HASH_SIZE)) {
+		if ((x + QCC_HASH_SIZE) > curr.size() || 
+		    memcmp(ptr_curr + x, ptr_temp + x, QCC_HASH_SIZE)) {
 			QccEdit *pe;
 			QccEdit *pe_temp;
 
@@ -360,7 +355,7 @@ QccDatabase :: getHashes(uint32_t year, int event, QByteArray &curr)
 				}
 			}
 
-			pe = pullEventById(year, x / QCC_HASH_SIZE);
+			pe = pullEventById(year, x / QCC_HASH_SIZE, 1);
 			if (pe != 0)
 				TAILQ_INSERT_TAIL(&head[y], pe, entry);
 
@@ -461,7 +456,6 @@ QccDatabase :: sync()
 {
 	QccEdit *pe;
 	uint32_t event_new;
-	uint32_t event_delta;
 	uint32_t x;
 	uint32_t y;
 
@@ -525,27 +519,12 @@ pull_only:
 		QByteArray hashes_curr;
 
 		if (setting.contains(key) != 0)
-			hashes_curr = setting.value(key).toByteArray();
+			hashes_curr = qUncompress(setting.value(key).toByteArray());
 
 		if (getHashes(x + QCC_YEAR_START, event_new, hashes_curr) == 0)
-			setting.setValue(key, hashes_curr);
+			setting.setValue(key, qCompress(hashes_curr));
 
-		/* compute number of new entries */
-		event_delta = event_new - event_no[x];
-
-		while (event_new != event_no[x]) {
-			if (event_no[x] >= QCC_EVENT_DELTA_MAX)
-				break;
-
-			QccEdit *pe = pullEventById(x + QCC_YEAR_START, event_no[x]);
-
-			if (pe == 0) {
-				parent->handle_failure(parent->tr("Could not read event"));
-				break;
-			}
-			TAILQ_INSERT_TAIL(&head[x], pe, entry);
-			event_no[x]++;
-		}
+		event_no[x] = event_new;
 
 		key = QString("year_%1_event").arg(QCC_YEAR_START + x);
 		setting.setValue(key, event_no[x]);

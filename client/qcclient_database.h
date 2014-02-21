@@ -39,7 +39,7 @@ public:
 
 	QccMainWindow *parent;
 
-	QccEdit *pullEventById(uint32_t, uint32_t);
+	QccEdit *pullEventById(uint32_t, uint32_t, uint32_t = 0);
 	void pushEventById(uint32_t, QccEdit *);
 	int getHashes(uint32_t, int, QByteArray &);
 
