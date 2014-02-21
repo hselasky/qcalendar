@@ -309,6 +309,16 @@ QccDatabase :: getHashes(uint32_t year, int event, QByteArray &curr)
 	if (event == 0)
 		return (retval);
 
+	/* simple case, pull new events */
+	for (x = event_no[y]; x < event; x++) {
+		QccEdit *pe = pullEventById(year, x, 0);
+		if (pe == 0)
+			break;
+		TAILQ_INSERT_TAIL(&head[y], pe, entry);
+	}
+	event_no[y] = event;
+
+	/* look for updates, only */
 	QByteArray temp;
 
 	SNPRINTF(buf, sizeof(buf), "HASHES_%d_%d\n", year, event);
@@ -343,8 +353,11 @@ QccDatabase :: getHashes(uint32_t year, int event, QByteArray &curr)
 	ptr_curr = curr.data();
 
 	for (x = 0; x != len; x += QCC_HASH_SIZE) {
-		if ((x + QCC_HASH_SIZE) > curr.size() || 
-		    memcmp(ptr_curr + x, ptr_temp + x, QCC_HASH_SIZE)) {
+		if ((x + QCC_HASH_SIZE) > curr.size()) {
+			retval = 0;
+			break;
+		}
+		if (memcmp(ptr_curr + x, ptr_temp + x, QCC_HASH_SIZE) != 0) {
 			QccEdit *pe;
 			QccEdit *pe_temp;
 
@@ -522,9 +535,7 @@ pull_only:
 			hashes_curr = qUncompress(setting.value(key).toByteArray());
 
 		if (getHashes(x + QCC_YEAR_START, event_new, hashes_curr) == 0)
-			setting.setValue(key, qCompress(hashes_curr));
-
-		event_no[x] = event_new;
+			setting.setValue(key, qCompress(hashes_curr, 9));
 
 		key = QString("year_%1_event").arg(QCC_YEAR_START + x);
 		setting.setValue(key, event_no[x]);

@@ -38,6 +38,9 @@ QccDay :: QccDay(QccMainWindow *_parent) :
 
 	parent = _parent;
 
+	event_pasteboard = -1;
+	event_year = -1;
+
 	watchdog = new QTimer();
 	connect(watchdog, SIGNAL(timeout()), this, SLOT(handle_remove_timeout()));
 
@@ -46,7 +49,7 @@ QccDay :: QccDay(QccMainWindow *_parent) :
 	gl = new QGridLayout(this);
 	gl->setSpacing(0);
 
-	gl->addWidget(tab,0,0,1,QCC_USER_NUM+1);
+	gl->addWidget(tab,0,0,1,QCC_USER_NUM+2);
 
 	status = new QLabel(tr("OK"));
 	gl->addWidget(status, 1,0,1,1);
@@ -72,6 +75,17 @@ QccDay :: QccDay(QccMainWindow *_parent) :
 	tomorrow = new QccButton("Show tomorrow", 1);
 	gl->addWidget(tomorrow, 2,3,1,1);
 	connect(tomorrow, SIGNAL(pressed(int)), this, SLOT(handle_today(int)));
+
+	cut = new QccButton("Event Cut", 0);
+	gl->addWidget(cut, 1,4,1,1);
+	connect(cut, SIGNAL(pressed(int)), this, SLOT(handle_cut()));
+
+	paste = new QccButton("Event Paste", 0);
+	gl->addWidget(paste, 2,4,1,1);
+	connect(paste, SIGNAL(pressed(int)), this, SLOT(handle_paste()));
+
+	cut->setEnabled(1);
+	paste->setEnabled(0);
 }
 
 QccDay :: ~QccDay()
@@ -134,4 +148,49 @@ QccDay :: handle_today(int offset)
 
 	parent->week->syncText();
 	parent->db->show();
+}
+
+void
+QccDay :: handle_cut()
+{
+	QccEdit *pe = (QccEdit *)tab->currentWidget();
+
+	if (pe == 0) {
+		event_pasteboard = -1;
+	} else {
+		event_pasteboard = pe->id;
+		event_year = parent->curr.year();
+	}
+
+	cut->setEnabled(0);
+	paste->setEnabled(1);
+}
+
+void
+QccDay :: handle_paste()
+{
+	QccEdit *pe;
+
+	if (event_pasteboard < 0)
+		return;
+	if (event_year != parent->curr.year())
+		return;
+
+	TAILQ_FOREACH(pe, &parent->db->head[event_year - QCC_YEAR_START], entry) {
+		if (pe->id == event_pasteboard) {
+			pe->date = parent->curr;
+			pe->status |= ST_DIRTY;
+			break;
+		}
+	}
+
+	event_pasteboard = -1;
+	event_year = -1;
+
+	parent->tabRefresh();
+ 	parent->week->syncText();
+	parent->db->show();
+
+	cut->setEnabled(1);
+	paste->setEnabled(0);
 }

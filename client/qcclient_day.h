@@ -46,7 +46,12 @@ public:
 	QccButton *remove;
 	QccButton *today;
 	QccButton *tomorrow;
+	QccButton *cut;
+	QccButton *paste;
 	QLabel *status;
+
+	int event_pasteboard;
+	int event_year;
 
 public slots:
 	void handle_new(int);
@@ -54,6 +59,8 @@ public slots:
 	void handle_remove_timeout();
 	void handle_sync();
 	void handle_today(int);
+	void handle_cut();
+	void handle_paste();
 };
 
 #endif			/* _QCCLIENT_DAY_H_ */
