@@ -267,7 +267,7 @@ QccDatabase :: getNewEventId(uint32_t year, uint32_t no_spares)
 	if (sscanf(buf, "ID_%d", &len) != 1)
 		goto error;
 
-	if (len < 0 || len > QCC_EVENT_DELTA_MAX)
+	if (len < 0 || len >= QCC_EVENT_DELTA_MAX)
 		goto error;
 	return (len);
 
@@ -284,13 +284,96 @@ error:
 		if (setting.contains(key) == 0)
 			continue;
 		len = setting.value(key).toInt();
-		if (len < 0 || len > QCC_EVENT_DELTA_MAX)
+		if (len < 0 || len >= QCC_EVENT_DELTA_MAX)
 			continue;
 		setting.setValue(key, -1);
 		setting.sync();
 		return (len);
 	}
 	return (-1);
+}
+
+int
+QccDatabase :: getHashes(uint32_t year, int event, QByteArray &curr)
+{
+	char buf[64];
+	int len;
+	int x;
+	int y = year - QCC_YEAR_START;
+	int retval = 1;
+	char *ptr_curr;
+	char *ptr_temp;
+
+	if (event == 0)
+		return (retval);
+
+	QByteArray temp;
+
+	SNPRINTF(buf, sizeof(buf), "HASHES_%d_%d\n", year, event);
+	tcp->write(buf, sizeof(buf));
+	tcp->flush();
+
+	while (tcp->bytesAvailable() < (int)sizeof(buf)) {
+		if (!tcp->waitForReadyRead(4000))
+			goto error;
+	}
+
+	len = tcp->read(buf, sizeof(buf));
+	if (len != (int)sizeof(buf))
+		goto error;
+
+	buf[sizeof(buf)-1] = 0;
+
+	if (sscanf(buf, "BYTES_%d", &len) != 1)
+		goto error;
+	if (len != (event * QCC_HASH_SIZE))
+		goto error;
+	while (tcp->bytesAvailable() < len) {
+		if (!tcp->waitForReadyRead(4000))
+			goto error;
+	}
+	temp = tcp->read(len);
+
+	if (temp.size() != len)
+		goto error;
+
+	ptr_temp = temp.data();
+	ptr_curr = curr.data();
+
+	if (curr.size() % QCC_HASH_SIZE)
+		curr = temp;
+
+	if (len > curr.size()) {
+		len = curr.size();
+		retval = 0;
+	}
+
+	for (x = 0; x != len; x += QCC_HASH_SIZE) {
+		if (memcmp(ptr_curr + x, ptr_temp + x, QCC_HASH_SIZE)) {
+			QccEdit *pe;
+			QccEdit *pe_temp;
+
+			TAILQ_FOREACH_SAFE(pe, &head[y], entry, pe_temp) {
+				if (pe->id == (x / QCC_HASH_SIZE)) {
+					TAILQ_REMOVE(&head[y], pe, entry);
+					delete (pe);
+				}
+			}
+
+			pe = pullEventById(year, x / QCC_HASH_SIZE);
+			if (pe != 0)
+				TAILQ_INSERT_TAIL(&head[y], pe, entry);
+
+			retval = 0;
+		}
+	}
+
+	curr = temp;
+	return (retval);
+
+error:
+	parent->handle_failure(parent->tr("Could not read hashes"));
+	return (1);
 }
 
 static int
@@ -409,7 +492,7 @@ QccDatabase :: sync()
 				continue;
 
 			int id = getNewEventId(QCC_YEAR_START + y, 1);
-			if (id < 0 || id > QCC_EVENT_DELTA_MAX)
+			if (id < 0 || id >= QCC_EVENT_DELTA_MAX)
 				break;
 			setting.setValue(key, id);
 		}
@@ -427,16 +510,34 @@ pull_only:
 	/* pull new events, if any */
 	for (x = 0; x != QCC_YEAR_NUM; x++) {
 
-		event_new = getMaxEventId(x + QCC_YEAR_START);
+		QString key;
 
+		/* get latest counter */
+		event_new = getMaxEventId(x + QCC_YEAR_START);
+		if (event_new > QCC_EVENT_DELTA_MAX) {
+			parent->handle_failure(parent->tr("Event overflow"));
+			event_new = QCC_EVENT_DELTA_MAX;
+		}
+
+		/* grab changes first */
+		key = QString("hashes_%1").arg(x + QCC_YEAR_START);
+
+		QByteArray hashes_curr;
+
+		if (setting.contains(key) != 0)
+			hashes_curr = setting.value(key).toByteArray();
+
+		if (getHashes(x + QCC_YEAR_START, event_new, hashes_curr) == 0)
+			setting.setValue(key, hashes_curr);
+
+		/* compute number of new entries */
 		event_delta = event_new - event_no[x];
-		if (event_delta >= QCC_EVENT_DELTA_MAX)
-			continue;
 
 		while (event_new != event_no[x]) {
+			if (event_no[x] >= QCC_EVENT_DELTA_MAX)
+				break;
 
-			QccEdit *pe = pullEventById(
-			    x + QCC_YEAR_START, event_no[x]);
+			QccEdit *pe = pullEventById(x + QCC_YEAR_START, event_no[x]);
 
 			if (pe == 0) {
 				parent->handle_failure(parent->tr("Could not read event"));
@@ -446,7 +547,7 @@ pull_only:
 			event_no[x]++;
 		}
 
-		QString key = QString("year_%1_event").arg(QCC_YEAR_START + x);
+		key = QString("year_%1_event").arg(QCC_YEAR_START + x);
 		setting.setValue(key, event_no[x]);
 	}
 	setting.sync();

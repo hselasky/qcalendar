@@ -42,18 +42,27 @@ QcsMain :: QcsMain()
 
 	connect(tcp, SIGNAL(newConnection()), this, SLOT(handle_connection()));
 
+	memset(time_event, 0, sizeof(time_event));
+
 	for (x = 0; x != QCS_YEAR_NUM; x++) {
 		max_event_id[x] = 0;
 
 		while (1) {
 			SNPRINTF(buf, sizeof(buf), "qcserver_event_%d_%d", x + QCS_YEAR_START, max_event_id[x]);
-			QFile file(QString(QCS_ROOT_DIR "/") + QString(buf));
+			QString fname(QString(QCS_ROOT_DIR "/") + QString(buf));
 
+			QFile file(fname);
 			if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
 				break;
 			file.close();
 
+			QFileInfo info(fname);
+			time_event[x][max_event_id[x]] = info.lastModified().toMSecsSinceEpoch();
+
 			max_event_id[x]++;
+
+			if (max_event_id[x] >= QCS_EVENT_DELTA_MAX)
+				break;
 		}
 	}
 }
@@ -88,7 +97,7 @@ QcsMain :: handle_connection()
 
 			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
 				break;
-			if (event < 0)
+			if (event < 0 || event >= QCS_EVENT_DELTA_MAX)
 				break;
 
 			SNPRINTF(buf, sizeof(buf), "qcserver_event_%d_%d", year, event);
@@ -103,13 +112,12 @@ QcsMain :: handle_connection()
 				conn->write(buf, sizeof(buf));
 				conn->write(ba);
 			}
-		} else if (sscanf(buf, "PUSH_%d_%d_%d",
-		    &year, &event, &size) == 3) {
+		} else if (sscanf(buf, "PUSH_%d_%d_%d", &year, &event, &size) == 3) {
 			char *ptr;
 
 			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
 				break;
-			if (event < 0)
+			if (event < 0 || event >= QCS_EVENT_DELTA_MAX)
 				break;
 			if (size < 0 || size > QCS_EVENT_SIZE_MAX)
 				break;
@@ -128,7 +136,8 @@ QcsMain :: handle_connection()
 			}
 
 			SNPRINTF(buf, sizeof(buf), "qcserver_event_%d_%d", year, event);
-			QFile file(QString(QCS_ROOT_DIR "/") + QString(buf));
+			QString fname(QString(QCS_ROOT_DIR "/") + QString(buf));
+			QFile file(fname);
 
 			if (!file.open(QIODevice::ReadWrite | QIODevice::Text | QIODevice::Truncate)) {
 				SNPRINTF(buf, sizeof(buf), "ERROR\n");
@@ -142,6 +151,9 @@ QcsMain :: handle_connection()
 					conn->write(buf, sizeof(buf));
 				}
 				file.close();
+
+				QFileInfo info(fname);
+				time_event[year - QCS_YEAR_START][event] = info.lastModified().toMSecsSinceEpoch();
 			}
 			free(ptr);
 		} else if (sscanf(buf, "MAX_EVENT_ID_%d", &year) == 1) {
@@ -152,13 +164,19 @@ QcsMain :: handle_connection()
 		} else if (sscanf(buf, "NEW_EVENT_ID_%d", &year) == 1) {
 			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
 				break;
-			if (max_event_id[year - QCS_YEAR_START] >= QCS_EVENT_DELTA_MAX)
+
+			event = max_event_id[year - QCS_YEAR_START];
+			if (event < 0 || event >= QCS_EVENT_DELTA_MAX) {
+				SNPRINTF(buf, sizeof(buf), "ID_-1\n");
+				conn->write(buf, sizeof(buf));
 				break;
+			}
 
 			SNPRINTF(buf, sizeof(buf), "qcserver_event_%d_%d",
-			    year, max_event_id[year - QCS_YEAR_START]);
+			    year, event);
 
-			QFile file(QString(QCS_ROOT_DIR "/") + QString(buf));
+			QString fname(QString(QCS_ROOT_DIR "/") + QString(buf));
+			QFile file(fname);
 
 			if (!file.open(QIODevice::ReadWrite |
 			    QIODevice::Text | QIODevice::Truncate)) {
@@ -175,16 +193,31 @@ QcsMain :: handle_connection()
 				   "user=0\n"
 				   "status=2\n" /* deleted */
 				   "id=%d\n",
-				   max_event_id[year - QCS_YEAR_START]);
+				   event);
 
 				file.write(buffer);
 				file.close();
 
-				SNPRINTF(buf, sizeof(buf), "ID_%d\n",
-				    max_event_id[year - QCS_YEAR_START]);
-				max_event_id[year - QCS_YEAR_START]++;
+				QFileInfo info(fname);
+				time_event[year - QCS_YEAR_START][event] = info.lastModified().toMSecsSinceEpoch();
+
+				SNPRINTF(buf, sizeof(buf), "ID_%d\n", event);
 				conn->write(buf, sizeof(buf));
+
+				/* advance event ID */
+				max_event_id[year - QCS_YEAR_START]++;
 			}
+		} else if (sscanf(buf, "HASHES_%d_%d", &year, &event) == 2) {
+			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
+				break;
+			if (event < 0 || event > QCS_EVENT_DELTA_MAX)
+				break;
+
+			size = event * sizeof(time_event[0][0]);
+
+			SNPRINTF(buf, sizeof(buf), "BYTES_%d\n", size);
+			conn->write(buf, sizeof(buf));
+			conn->write((char *)time_event[year - QCS_YEAR_START], size);
 		} else {
 			break;
 		}

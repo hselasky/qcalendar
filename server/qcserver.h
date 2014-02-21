@@ -30,6 +30,8 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QFile>
+#include <QFileInfo>
+#include <QDateTime>
 
 #include <stdio.h>
 #include <string.h>
@@ -60,6 +62,8 @@ public:
 	~QcsMain();
 
 	int max_event_id[QCS_YEAR_NUM];
+
+	uint64_t time_event[QCS_YEAR_NUM][QCS_EVENT_DELTA_MAX];
 
 	QTcpServer *tcp;
 

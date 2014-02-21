@@ -71,6 +71,8 @@
 #ifndef QCC_EVENT_SPARE_NUM
 #define	QCC_EVENT_SPARE_NUM 32
 #endif
+#define	QCC_HASHES_MAX (QCS_EVENT_DELTA_MAX * QCC_HASH_SIZE)
+#define	QCC_HASH_SIZE 8
 
 class QccMainWindow;
 class QccButton;

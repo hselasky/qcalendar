@@ -41,6 +41,7 @@ public:
 
 	QccEdit *pullEventById(uint32_t, uint32_t);
 	void pushEventById(uint32_t, QccEdit *);
+	int getHashes(uint32_t, int, QByteArray &);
 
 	uint32_t getMaxEventId(uint32_t);
 	int getNewEventId(uint32_t, uint32_t = 0);
