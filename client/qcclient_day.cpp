@@ -84,7 +84,6 @@ QccDay :: QccDay(QccMainWindow *_parent) :
 	gl->addWidget(paste, 2,4,1,1);
 	connect(paste, SIGNAL(pressed(int)), this, SLOT(handle_paste()));
 
-	cut->setEnabled(1);
 	paste->setEnabled(0);
 }
 
@@ -162,7 +161,6 @@ QccDay :: handle_cut()
 		event_year = parent->curr.year();
 	}
 
-	cut->setEnabled(0);
 	paste->setEnabled(1);
 }
 
@@ -191,6 +189,5 @@ QccDay :: handle_paste()
  	parent->week->syncText();
 	parent->db->show();
 
-	cut->setEnabled(1);
 	paste->setEnabled(0);
 }
