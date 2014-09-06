@@ -62,3 +62,8 @@ isEmpty(HAVE_BUNDLE_ICONS) {
 desktop.path	= $${PREFIX}/share/applications
 desktop.files	= qcclient.desktop
 INSTALLS	+= desktop
+
+DEFINES		+= "QCC_USER_NUM=3"
+DEFINES		+= "QCC_USER_LIST=\\\"AHW\\\",\\\"HPS\\\",\\\"COMMON\\\""
+DEFINES		+= "QCC_HOST_ADDR=\\\"10.36.2.14\\\""
+
