@@ -38,8 +38,8 @@
 #include <err.h>
 #include <sysexits.h>
 
-#define	QCS_YEAR_START 2014
-#define	QCS_YEAR_STOP 2015
+#define	QCS_YEAR_START 2015
+#define	QCS_YEAR_STOP 2016
 #define	QCS_YEAR_NUM (QCS_YEAR_STOP + 1 - QCS_YEAR_START)
 #define	QCS_EVENT_DELTA_MAX (24 * 365)
 #define	QCS_EVENT_SIZE_MAX (16 * 1024)
