@@ -37,10 +37,10 @@
 #include <string.h>
 #include <err.h>
 #include <sysexits.h>
+#include <stdint.h>
+#include <unistd.h>
 
-#define	QCS_YEAR_START 2015
-#define	QCS_YEAR_STOP 2016
-#define	QCS_YEAR_NUM (QCS_YEAR_STOP + 1 - QCS_YEAR_START)
+#define	QCS_YEAR_NUM 2
 #define	QCS_EVENT_DELTA_MAX (24 * 365)
 #define	QCS_EVENT_SIZE_MAX (16 * 1024)
 #ifndef QCS_HOST_PORT
@@ -70,5 +70,11 @@ public:
 public slots:
 	void handle_connection();
 };
+
+extern int qcs_year_start;
+extern int qcs_year_stop;
+extern const char *qcs_user_a;
+extern const char *qcs_user_b;
+extern const char *qcs_user_c;
 
 #endif			/* _QCSERVER_H_ */

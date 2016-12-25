@@ -25,6 +25,12 @@
 
 #include "qcserver.h"
 
+int qcs_year_start = 2015;
+int qcs_year_stop;
+const char *qcs_user_a = "A";
+const char *qcs_user_b = "B";
+const char *qcs_user_c = "C";
+
 #define	SNPRINTF(buf, size, ...) do {		\
 	memset((buf), 0, (size));		\
 	snprintf((buf), (size), __VA_ARGS__);	\
@@ -48,7 +54,7 @@ QcsMain :: QcsMain()
 		max_event_id[x] = 0;
 
 		while (1) {
-			SNPRINTF(buf, sizeof(buf), "qcserver_event_%d_%d", x + QCS_YEAR_START, max_event_id[x]);
+			SNPRINTF(buf, sizeof(buf), "qcserver_event_%d_%d", x + qcs_year_start, max_event_id[x]);
 			QString fname(QString(QCS_ROOT_DIR "/") + QString(buf));
 
 			QFile file(fname);
@@ -95,7 +101,7 @@ QcsMain :: handle_connection()
 		if (sscanf(buf, "PULL_%d_%d", &year, &event) == 2) {
 			QByteArray ba;
 
-			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
+			if (year < qcs_year_start || year > qcs_year_stop)
 				break;
 			if (event < 0 || event >= QCS_EVENT_DELTA_MAX)
 				break;
@@ -115,7 +121,7 @@ QcsMain :: handle_connection()
 		} else if (sscanf(buf, "PUSH_%d_%d_%d", &year, &event, &size) == 3) {
 			char *ptr;
 
-			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
+			if (year < qcs_year_start || year > qcs_year_stop)
 				break;
 			if (event < 0 || event >= QCS_EVENT_DELTA_MAX)
 				break;
@@ -153,19 +159,19 @@ QcsMain :: handle_connection()
 				file.close();
 
 				QFileInfo info(fname);
-				time_event[year - QCS_YEAR_START][event] = info.lastModified().toMSecsSinceEpoch();
+				time_event[year - qcs_year_start][event] = info.lastModified().toMSecsSinceEpoch();
 			}
 			free(ptr);
 		} else if (sscanf(buf, "MAX_EVENT_ID_%d", &year) == 1) {
-			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
+			if (year < qcs_year_start || year > qcs_year_stop)
 				break;
-			SNPRINTF(buf, sizeof(buf), "ID_%d\n", max_event_id[year - QCS_YEAR_START]);
+			SNPRINTF(buf, sizeof(buf), "ID_%d\n", max_event_id[year - qcs_year_start]);
 			conn->write(buf, sizeof(buf));
 		} else if (sscanf(buf, "NEW_EVENT_ID_%d", &year) == 1) {
-			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
+			if (year < qcs_year_start || year > qcs_year_stop)
 				break;
 
-			event = max_event_id[year - QCS_YEAR_START];
+			event = max_event_id[year - qcs_year_start];
 			if (event < 0 || event >= QCS_EVENT_DELTA_MAX) {
 				SNPRINTF(buf, sizeof(buf), "ID_-1\n");
 				conn->write(buf, sizeof(buf));
@@ -199,16 +205,16 @@ QcsMain :: handle_connection()
 				file.close();
 
 				QFileInfo info(fname);
-				time_event[year - QCS_YEAR_START][event] = info.lastModified().toMSecsSinceEpoch();
+				time_event[year - qcs_year_start][event] = info.lastModified().toMSecsSinceEpoch();
 
 				SNPRINTF(buf, sizeof(buf), "ID_%d\n", event);
 				conn->write(buf, sizeof(buf));
 
 				/* advance event ID */
-				max_event_id[year - QCS_YEAR_START]++;
+				max_event_id[year - qcs_year_start]++;
 			}
 		} else if (sscanf(buf, "HASHES_%d_%d", &year, &event) == 2) {
-			if (year < QCS_YEAR_START || year > QCS_YEAR_STOP)
+			if (year < qcs_year_start || year > qcs_year_stop)
 				break;
 			if (event < 0 || event > QCS_EVENT_DELTA_MAX)
 				break;
@@ -217,7 +223,14 @@ QcsMain :: handle_connection()
 
 			SNPRINTF(buf, sizeof(buf), "BYTES_%d\n", size);
 			conn->write(buf, sizeof(buf));
-			conn->write((char *)time_event[year - QCS_YEAR_START], size);
+			conn->write((char *)time_event[year - qcs_year_start], size);
+		} else if (sscanf(buf, "CONFIGURATION") == 0) {
+			char buffer[1024];
+			SNPRINTF(buffer, sizeof(buffer),
+			   "%d-%d-%s-%s-%s",
+			   qcs_year_start, qcs_year_stop,
+			   qcs_user_a, qcs_user_b, qcs_user_c);
+			conn->write(buffer, sizeof(buffer));
 		} else {
 			break;
 		}
@@ -232,10 +245,47 @@ QcsMain :: ~QcsMain()
 	delete tcp;
 }
 
+static void
+qcs_filter(char *ptr)
+{
+	while (*ptr) {
+		if (isprint(*ptr) == 0 || *ptr == '-')
+			*ptr = ' ';
+		ptr++;
+	}
+}
+
 Q_DECL_EXPORT int
 main(int argc, char **argv)
 {
+	const char *options = "a:b:c:y:";
   	QCoreApplication app(argc, argv, 0);
+	int ch;
+
+	/* parse configuration, if any */
+	while ((ch = getopt(argc, argv, options)) != -1) {
+		switch (ch) {
+		case 'a':
+			qcs_filter(optarg);
+			qcs_user_a = optarg;
+			break;
+		case 'b':
+			qcs_filter(optarg);
+			qcs_user_b = optarg;
+			break;
+		case 'c':	
+			qcs_filter(optarg);
+			qcs_user_c = optarg;
+			break;
+		case 'y':
+			qcs_year_start = atoi(optarg);
+			break;
+		default:
+			break;
+		}
+	}
+
+	qcs_year_stop = qcs_year_start + QCS_YEAR_NUM - 1;
 
 	new QcsMain();
 
