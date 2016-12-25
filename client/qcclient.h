@@ -43,22 +43,17 @@
 #include <QTcpSocket>
 #include <QFile>
 #include <QDir>
+#include <QMessageBox>
 
+#include <stdio.h>
 #include <sys/queue.h>
 
-#define	QCC_YEAR_START 2015
-#define	QCC_YEAR_STOP 2016
-#define	QCC_YEAR_NUM (QCC_YEAR_STOP + 1 - QCC_YEAR_START)
+#define	QCC_YEAR_NUM 2
 #define	QCC_MONTH_NUM_W 4
 #define	QCC_MONTH_NUM_H 3
 #define	QCC_WEEK_NUM_W 8
 #define	QCC_WEEK_NUM_H 7
-#ifndef QCC_USER_NUM
 #define	QCC_USER_NUM 3
-#endif
-#ifndef QCC_USER_LIST
-#define	QCC_USER_LIST "A", "B", "C"
-#endif
 #define	QCC_EVENT_NUM 24
 #define	QCC_EVENT_DELTA_MAX (24 * 365)
 #define	QCC_EVENT_SIZE_MAX (16 * 1024)
@@ -71,6 +66,11 @@
 #endif
 #define	QCC_HASHES_MAX (QCS_EVENT_DELTA_MAX * QCC_HASH_SIZE)
 #define	QCC_HASH_SIZE 8
+
+#define	SNPRINTF(buf, size, ...) do {		\
+	memset((buf), 0, (size));		\
+	snprintf((buf), (size), __VA_ARGS__);	\
+} while (0)
 
 class QccMainWindow;
 class QccButton;
@@ -132,5 +132,8 @@ extern const char *months[QCC_MONTH_NUM_H][QCC_MONTH_NUM_W];
 extern const char *weeks[QCC_WEEK_NUM_W];
 extern const char *users[QCC_USER_NUM];
 extern QString QccDatabasePath;
+extern int qcc_year_start;
+extern int qcc_year_stop;
+extern QString qcc_user[QCC_USER_NUM];
 
 #endif			/* _QCCLIENT_H_ */

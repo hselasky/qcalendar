@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2014 Hans Petter Selasky. All rights reserved.
+ * Copyright (c) 2014-2016 Hans Petter Selasky. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,13 +30,84 @@
 #include "qcclient_week.h"
 #include "qcclient_database.h"
 
+int qcc_year_start;
+int qcc_year_stop;
+QString qcc_user[QCC_USER_NUM];
+
+static int
+qcc_read_config(void)
+{
+	QTcpSocket *tcp;
+	char buf[64];
+	char *token;
+	char *string;
+	char buffer[1024];
+	int len;
+	int x;
+
+	tcp = new QTcpSocket();
+
+	tcp->connectToHost(QCC_HOST_ADDR, QCC_HOST_PORT);
+
+	if (tcp->waitForConnected(4000) == 0) {
+		delete tcp;
+		return (1);
+	}
+
+	SNPRINTF(buf, sizeof(buf), "CONFIGURATION\n");
+	tcp->write(buf, sizeof(buf));
+	tcp->flush();
+
+	while (tcp->bytesAvailable() < (int)sizeof(buffer)) {
+		if (!tcp->waitForReadyRead(4000))
+			goto error;
+	}
+
+	len = tcp->read(buffer, sizeof(buffer));
+	if (len != (int)sizeof(buffer))
+		goto error;
+
+	buffer[sizeof(buffer)-1] = 0;
+
+	string = buffer;
+
+	token = strsep(&string, "-");
+	if (token == 0)
+		goto error;
+	qcc_year_start = atoi(token);
+
+	token = strsep(&string, "-");
+	if (token == 0)
+		goto error;
+	qcc_year_stop = atoi(token);
+
+	for (x = 0; x != QCC_USER_NUM; x++) {
+		token = strsep(&string, "-");
+		if (token == 0)
+			goto error;
+		qcc_user[x] = QString::fromUtf8(token);
+	}
+
+	if ((qcc_year_start + QCC_YEAR_NUM - 1) != qcc_year_stop)
+		goto error;
+
+	tcp->close();
+	delete tcp;
+	return (0);
+
+error:
+	tcp->close();
+	delete tcp;
+	return (1);
+}
+
 Q_DECL_EXPORT
 QString QccDatabasePath;
 
 QccMainWindow :: QccMainWindow() :
   QTabWidget()
 {
-	curr.setDate(QCC_YEAR_START, 1, 1);
+	curr.setDate(qcc_year_start, 1, 1);
 
 	memset(usage, 0, sizeof(usage));
 
@@ -48,7 +119,7 @@ QccMainWindow :: QccMainWindow() :
 	year = new QccYear(this);
 	db = new QccDatabase(this);
 
-	addTab(year, tr("Year - %1").arg(QCC_YEAR_START));
+	addTab(year, tr("Year - %1").arg(qcc_year_start));
 	addTab(month, tr("Month - JAN"));
 	addTab(week, tr("Week - %1").arg(curr.weekNumber()));
 	addTab(day, tr("Day - 1 - %1").arg(QString(weeks[curr.dayOfWeek()])));
@@ -155,6 +226,19 @@ main(int argc, char **argv)
 {
   	QApplication app(argc, argv);
 
+	if (qcc_read_config() != 0) {
+		QMessageBox box;
+
+		box.setText(QObject::tr("Cannot read configuration from server!"));
+		box.setStandardButtons(QMessageBox::Ok);
+		box.setIcon(QMessageBox::Information);
+		box.setWindowIcon(QIcon(QString(":/qcclient_48x48.png")));
+		box.setWindowTitle("QCalendarClient");
+		box.exec();
+
+		return (0);
+	}
+	
 	QDir dir;
 
 	QccDatabasePath = dir.homePath() + QString("/Documents/qcclient.db");

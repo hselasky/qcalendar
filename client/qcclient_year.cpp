@@ -29,15 +29,15 @@
 QccYear :: QccYear(QccMainWindow *_parent) :
   QWidget()
 {
-	unsigned x;
+	int x;
 
 	parent = _parent;
 	gl = new QGridLayout(this);
 
-	for (x = QCC_YEAR_START; x != (QCC_YEAR_STOP + 1); x++) {
+	for (x = qcc_year_start; x != (qcc_year_stop + 1); x++) {
 		button[x] = new QccButton(QString("%1").arg(x), x);
 		connect(button[x], SIGNAL(released(int)), parent, SLOT(handle_select_year(int)));
-		gl->addWidget(button[x], 0, x - QCC_YEAR_START, 1, 1);
+		gl->addWidget(button[x], 0, x - qcc_year_stop, 1, 1);
 	}
 
 	gl->setRowStretch(1, 1);

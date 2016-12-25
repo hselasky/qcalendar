@@ -55,11 +55,6 @@ QccDatabase :: ~QccDatabase()
 	}
 }
 
-#define	SNPRINTF(buf, size, ...) do {		\
-	memset((buf), 0, (size));		\
-	snprintf((buf), (size), __VA_ARGS__);	\
-} while (0)
-
 QccEdit *
 QccDatabase :: pullEventById(uint32_t year, uint32_t event, uint32_t refresh)
 {
@@ -301,7 +296,7 @@ QccDatabase :: getHashes(uint32_t year, int event, QByteArray &curr)
 	char buf[64];
 	int len;
 	int x;
-	int y = year - QCC_YEAR_START;
+	int y = year - qcc_year_start;
 	int retval = 1;
 	char *ptr_curr;
 	char *ptr_temp;
@@ -425,7 +420,7 @@ QccDatabase :: sort()
 		}
 
 		/* sort events */
-		qsort(ppe, n, sizeof(void *), compare);
+		mergesort(ppe, n, sizeof(void *), compare);
 
 		/* remove duplicates */
 		for (y = 1; y != n; y++) {
@@ -455,8 +450,8 @@ QccDatabase :: sort()
 				pe->date.getDate(&a,&b,&c);
 
 				/* Do stats */
-				if (a >= QCC_YEAR_START && a <= QCC_YEAR_STOP)
-					parent->usage[a - QCC_YEAR_START][b - 1][c - 1]++;
+				if (a >= qcc_year_start && a <= qcc_year_stop)
+					parent->usage[a - qcc_year_start][b - 1][c - 1]++;
 			}
 			TAILQ_INSERT_TAIL(&head[x], pe, entry);
 		}
@@ -492,13 +487,13 @@ QccDatabase :: sync()
 	for (y = 0; y != QCC_YEAR_NUM; y++) {
 		for (x = 0; x != QCC_EVENT_SPARE_NUM; x++) {
 			QString key = QString("year_%1_spare_%2")
-			    .arg(QCC_YEAR_START + y).arg(x);
+			    .arg(qcc_year_start + y).arg(x);
 
 			if (setting.contains(key) != 0 &&
 			    setting.value(key).toInt() > -1)
 				continue;
 
-			int id = getNewEventId(QCC_YEAR_START + y, 1);
+			int id = getNewEventId(qcc_year_start + y, 1);
 			if (id < 0 || id >= QCC_EVENT_DELTA_MAX)
 				break;
 			setting.setValue(key, id);
@@ -510,7 +505,7 @@ QccDatabase :: sync()
 	/* ensure all events are pushed */
 	for (x = 0; x != QCC_YEAR_NUM; x++) {
 		TAILQ_FOREACH(pe, &head[x], entry)
-			pushEventById(QCC_YEAR_START + x, pe);
+			pushEventById(qcc_year_start + x, pe);
      	}
 
 pull_only:
@@ -520,24 +515,24 @@ pull_only:
 		QString key;
 
 		/* get latest counter */
-		event_new = getMaxEventId(x + QCC_YEAR_START);
+		event_new = getMaxEventId(x + qcc_year_start);
 		if (event_new > QCC_EVENT_DELTA_MAX) {
 			parent->handle_failure(parent->tr("Event overflow"));
 			event_new = QCC_EVENT_DELTA_MAX;
 		}
 
 		/* grab changes first */
-		key = QString("hashes_%1").arg(x + QCC_YEAR_START);
+		key = QString("hashes_%1").arg(x + qcc_year_start);
 
 		QByteArray hashes_curr;
 
 		if (setting.contains(key) != 0)
 			hashes_curr = qUncompress(setting.value(key).toByteArray());
 
-		if (getHashes(x + QCC_YEAR_START, event_new, hashes_curr) == 0)
+		if (getHashes(x + qcc_year_start, event_new, hashes_curr) == 0)
 			setting.setValue(key, qCompress(hashes_curr, 9));
 
-		key = QString("year_%1_event").arg(QCC_YEAR_START + x);
+		key = QString("year_%1_event").arg(qcc_year_start + x);
 		setting.setValue(key, event_no[x]);
 	}
 	setting.sync();
@@ -558,7 +553,7 @@ QccDatabase :: show()
 
 	parent->curr.getDate(&y,&m,&d);
 
-	x = y - QCC_YEAR_START;
+	x = y - qcc_year_start;
 	if (x < 0 || x >= QCC_YEAR_NUM)
 		return;
 
@@ -586,7 +581,7 @@ QccDatabase :: add(QccEdit *pe)
 
 	pe->date.getDate(&y,&m,&d);
 
-	x = y - QCC_YEAR_START;
+	x = y - qcc_year_start;
 	if (x < 0 || x >= QCC_YEAR_NUM) {
 		delete pe;
 		return (0);

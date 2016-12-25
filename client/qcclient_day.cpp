@@ -29,8 +29,6 @@
 #include "qcclient_database.h"
 #include "qcclient_week.h"
 
-const char *users[QCC_USER_NUM] = { QCC_USER_LIST };
-
 QccDay :: QccDay(QccMainWindow *_parent) :
   QWidget()
 {
@@ -55,7 +53,7 @@ QccDay :: QccDay(QccMainWindow *_parent) :
 	gl->addWidget(status, 1,0,1,1);
 
 	for (x = 0; x != QCC_USER_NUM; x++) {
-		but_new[x] = new QccButton(tr("New %1 event").arg(QString(users[x])), x);
+		but_new[x] = new QccButton(tr("New %1 event").arg(qcc_user[x]), x);
 		connect(but_new[x], SIGNAL(released(int)), this, SLOT(handle_new(int)));
 		gl->addWidget(but_new[x],1,x+1,1,1);
 	}
@@ -96,7 +94,7 @@ QccDay :: handle_new(int id)
 {
 	QccEdit *pe = new QccEdit(parent);
 
-	pe->user->setText(QString(users[id]));
+	pe->user->setText(qcc_user[id]);
 
 	if (parent->db->add(pe) == 0)
 		return;
@@ -174,7 +172,7 @@ QccDay :: handle_paste()
 	if (event_year != parent->curr.year())
 		return;
 
-	TAILQ_FOREACH(pe, &parent->db->head[event_year - QCC_YEAR_START], entry) {
+	TAILQ_FOREACH(pe, &parent->db->head[event_year - qcc_year_start], entry) {
 		if (pe->id == event_pasteboard) {
 			pe->date = parent->curr;
 			pe->status |= ST_DIRTY;

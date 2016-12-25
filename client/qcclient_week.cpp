@@ -106,8 +106,8 @@ QccWeek :: syncText(void)
 
 		button[x][y]->setFlat(temp == today);
 
-		if ((yr >= QCC_YEAR_START && yr <= QCC_YEAR_STOP) &&
-		    ((num = parent->usage[yr - QCC_YEAR_START][m - 1][id - 1]) != 0)) {
+		if ((yr >= qcc_year_start && yr <= qcc_year_stop) &&
+		    ((num = parent->usage[yr - qcc_year_start][m - 1][id - 1]) != 0)) {
 			switch (num) {
 			case 1:
 				num = '-';
