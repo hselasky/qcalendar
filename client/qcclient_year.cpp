@@ -37,7 +37,7 @@ QccYear :: QccYear(QccMainWindow *_parent) :
 	for (x = qcc_year_start; x != (qcc_year_stop + 1); x++) {
 		button[x] = new QccButton(QString("%1").arg(x), x);
 		connect(button[x], SIGNAL(released(int)), parent, SLOT(handle_select_year(int)));
-		gl->addWidget(button[x], 0, x - qcc_year_stop, 1, 1);
+		gl->addWidget(button[x], 0, x - qcc_year_start, 1, 1);
 	}
 
 	gl->setRowStretch(1, 1);
