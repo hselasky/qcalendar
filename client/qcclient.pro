@@ -5,6 +5,10 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 QT += widgets printsupport
 }
 
+isEmpty(PREFIX) {
+PREFIX=/usr/local
+}
+
 !isEmpty(HAVE_IOS) {
 icons.path	= $${PREFIX}
 icons.files	=
