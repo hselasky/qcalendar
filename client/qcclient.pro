@@ -9,6 +9,14 @@ isEmpty(PREFIX) {
 PREFIX=/usr/local
 }
 
+# Automatic platform detection
+macx {
+HAVE_MACOSX=YES
+}
+ios {
+HAVE_IOS=YES
+}
+
 !isEmpty(HAVE_IOS) {
 icons.path	= $${PREFIX}
 icons.files	=
