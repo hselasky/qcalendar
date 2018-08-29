@@ -16,8 +16,9 @@
 		<dict>
 			<key>CFBundleIconFiles</key>
 			<array>
-				<string>qcclient_57x57.png</string>
 				<string>qcclient_72x72.png</string>
+				<string>qcclient_72x72.png</string>
+				<string>qcclient_57x57.png</string>
 				<string>qcclient_76x76.png</string>
 				<string>qcclient_120x120.png</string>
 				<string>qcclient_114x114.png</string>

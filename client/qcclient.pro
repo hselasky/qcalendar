@@ -5,16 +5,20 @@ greaterThan(QT_MAJOR_VERSION, 4) {
 QT += widgets printsupport
 }
 
-isEmpty(PREFIX) {
-PREFIX=/usr/local
-}
-
 # Automatic platform detection
 macx {
 HAVE_MACOSX=YES
 }
 ios {
 HAVE_IOS=YES
+}
+
+isEmpty(macx) {
+isEmpty(ios) {
+isEmpty(PREFIX) {
+PREFIX=/usr/local
+}
+}
 }
 
 !isEmpty(HAVE_IOS) {
