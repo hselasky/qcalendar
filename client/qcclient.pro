@@ -19,17 +19,12 @@ HAVE_IOS=YES
 
 !isEmpty(HAVE_IOS) {
 icons.path	= $${PREFIX}
-icons.files	=
-icons.files += qcclient_114x114.png
-icons.files += qcclient_120x120.png
-icons.files += qcclient_144x144.png
-icons.files += qcclient_152x152.png
-icons.files += qcclient_57x57.png
-icons.files += qcclient_72x72.png
-icons.files += qcclient_76x76.png
+icons.files	= qcclient_72x72.png qcclient_114x114.png qcclient_120x120.png qcclient_144x144.png qcclient_152x152.png qcclient_57x57.png qcclient_76x76.png
 QMAKE_BUNDLE_DATA += icons
 QMAKE_INFO_PLIST= qcclient_ios.plist
 HAVE_BUNDLE_ICONS=YES
+QMAKE_APPLE_DEVICE_ARCHS= armv7 arm64
+QMAKE_IOS_DEPLOYMENT_TARGET= 9.2
 }
 
 !isEmpty(HAVE_MACOSX) {
