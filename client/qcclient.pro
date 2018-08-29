@@ -13,8 +13,8 @@ ios {
 HAVE_IOS=YES
 }
 
-isEmpty(macx) {
-isEmpty(ios) {
+isEmpty(HAVE_MACOSX) {
+isEmpty(HAVE_IOS) {
 isEmpty(PREFIX) {
 PREFIX=/usr/local
 }
